@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoatBot V2 - System Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #0f0f1e 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background grid */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+            animation: gridScroll 20s linear infinite;
+        }
+
+        @keyframes gridScroll {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 50px 50px;
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Header with glitch effect */
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00aa00;
+            animation: glitch 3s infinite;
+            font-weight: bold;
+        }
+
+        @keyframes glitch {
+            0%, 100% {
+                text-shadow: 0 0 10px #00ff00, 0 0 20px #00aa00;
+                color: #00ff00;
+            }
+            50% {
+                text-shadow: 0 0 20px #ff00ff, 0 0 30px #00ffff;
+                color: #ffff00;
+            }
+        }
+
+        .header p {
+            font-size: 1.1em;
+            color: #00cc00;
+            text-shadow: 0 0 10px #00ff00;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+            margin-right: 10px;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 10px #00ff00, 0 0 20px #00aa00;
+                background: #00ff00;
+            }
+            50% {
+                box-shadow: 0 0 20px #00ff00, 0 0 40px #00aa00;
+                background: #00dd00;
+            }
+        }
+
+        /* Terminal frames */
+        .terminal-frame {
+            background: rgba(10, 14, 39, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 0 10px rgba(0, 255, 0, 0.5),
+                inset 0 0 20px rgba(0, 255, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-frame::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: scanlines 8s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% {
+                transform: translateY(-100%);
+            }
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+
+        .terminal-header h2 {
+            flex: 1;
+            font-size: 1.3em;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .terminal-header .timestamp {
+            color: #00aa00;
+            font-size: 0.9em;
+        }
+
+        /* Content styling */
+        .terminal-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .info-line {
+            display: flex;
+            margin: 12px 0;
+            align-items: center;
+            animation: fadeInLine 0.5s ease-out backwards;
+        }
+
+        .info-line:nth-child(1) { animation-delay: 0s; }
+        .info-line:nth-child(2) { animation-delay: 0.1s; }
+        .info-line:nth-child(3) { animation-delay: 0.2s; }
+        .info-line:nth-child(4) { animation-delay: 0.3s; }
+        .info-line:nth-child(5) { animation-delay: 0.4s; }
+        .info-line:nth-child(6) { animation-delay: 0.5s; }
+
+        @keyframes fadeInLine {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .label {
+            width: 180px;
+            color: #00ff00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .value {
+            flex: 1;
+            color: #00cc00;
+            word-break: break-all;
+        }
+
+        .value.highlight {
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+            font-weight: bold;
+        }
+
+        /* Grid layout for stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            color: #ffff00;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffff00;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #00aa00;
+        }
+
+        /* Commands list */
+        .commands-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .command-tag {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            padding: 8px 12px;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 0.85em;
+            color: #00ff00;
+            transition: all 0.2s ease;
+            cursor: default;
+        }
+
+        .command-tag:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            color: #ffff00;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% {
+                content: '';
+            }
+            40% {
+                content: '.';
+            }
+            60% {
+                content: '..';
+            }
+            80%, 100% {
+                content: '...';
+            }
+        }
+
+        /* Typing cursor */
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: #00ff00;
+            margin-left: 5px;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% {
+                opacity: 1;
+            }
+            51%, 100% {
+                opacity: 0;
+            }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #00ff00;
+            color: #00aa00;
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: #ffff00;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .footer a:hover {
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .label {
+                width: 120px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Error state */
+        .error-state {
+            border-color: #ff0000 !important;
+            background: rgba(255, 0, 0, 0.05) !important;
+        }
+
+        .error-state .label,
+        .error-state .terminal-header h2 {
+            color: #ff0000 !important;
+            text-shadow: 0 0 10px #ff0000 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ GoatBot V2 System Monitor ⚡</h1>
+            <p>
+                <span class="status-indicator"></span>
+                <span id="status-text">System Online</span>
+            </p>
+        </div>
+
+        <!-- Bot Status -->
+        <div class="terminal-frame" id="bot-status">
+            <div class="terminal-header">
+                <h2>🤖 BOT STATUS</h2>
+                <div class="timestamp" id="timestamp"></div>
+            </div>
+            <div class="terminal-content">
+                <div class="info-line">
+                    <span class="label">Bot Name:</span>
+                    <span class="value" id="bot-name">GoatBot V2</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Version:</span>
+                    <span class="value" id="bot-version">1.5.35</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Uptime:</span>
+                    <span class="value highlight" id="uptime">Calculating<span class="cursor"></span></span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Loaded Commands:</span>
+                    <span class="value highlight" id="commands-count">62</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Loaded Events:</span>
+                    <span class="value highlight" id="events-count">6</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Author Credits:</span>
+                    <span class="value highlight" id="author">April Manalo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="terminal-frame">
+            <div class="terminal-header">
+                <h2>📊 STATISTICS</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">System Load</div>
+                    <div class="stat-value" id="stat-load">ACTIVE</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Memory Status</div>
+                    <div class="stat-value" id="stat-memory">OPERATIONAL</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">MQTT Connection</div>
+                    <div class="stat-value" id="stat-mqtt">CONNECTED</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commands List -->
+        <div class="terminal-frame">
+            <div class="terminal-header">
+                <h2>⚙️ LOADED COMMANDS</h2>
+            </div>
+            <div class="commands-grid" id="commands-list">
+                <div class="command-tag">Loading<span class="cursor"></span></div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="terminal-frame">
+            <div class="terminal-header">
+                <h2>🔧 SYSTEM INFO</h2>
+            </div>
+            <div class="terminal-content">
+                <div class="info-line">
+                    <span class="label">Node Version:</span>
+                    <span class="value" id="node-version">v20.19.3</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Platform:</span>
+                    <span class="value" id="platform">Linux</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Prefix:</span>
+                    <span class="value" id="prefix">-</span>
+                </div>
+                <div class="info-line">
+                    <span class="label">Language:</span>
+                    <span class="value" id="language">English (en)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>🚀 GoatBot V2 - Created by NTKhang | Modified by April Manalo</p>
+            <p>⚠️ Do not share your login credentials with anyone</p>
+            <p><a href="https://github.com/ntkhang03/Goat-Bot-V2" target="_blank">Official Repository</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Sample data - in production this would come from an API
+        const sampleCommands = [
+            'help', 'ping', 'say', 'admin', 'ban', 'kick', 'mute', 'unmute',
+            'prefix', 'info', 'emoji', 'reaction', 'sticker', 'audio',
+            'image', 'video', 'link', 'translate', 'weather', 'time',
+            'math', 'randomnumber', 'dice', 'coin', 'joke', 'quote',
+            'anime', 'manga', 'music', 'youtube', 'tiktok', 'instagram',
+            'facebook', 'twitter', 'reddit', 'google', 'wiki', 'news',
+            'stock', 'crypto', 'convert', 'reminder', 'schedule', 'timer',
+            'alarm', 'note', 'todo', 'calculator', 'password', 'qrcode',
+            'barcode', 'avatar', 'profile', 'stats', 'ranking', 'leaderboard',
+            'achievement', 'battle', 'game', 'trivia', 'puzzle', 'riddle',
+            'story', 'poem', 'drawing', 'canvas', 'filter', 'effects'
+        ];
+
+        let startTime = Date.now();
+
+        function updateUptime() {
+            const elapsed = Date.now() - startTime;
+            const seconds = Math.floor((elapsed / 1000) % 60);
+            const minutes = Math.floor((elapsed / (1000 * 60)) % 60);
+            const hours = Math.floor((elapsed / (1000 * 60 * 60)) % 24);
+            const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+
+            let uptimeStr = '';
+            if (days > 0) uptimeStr += `${days}d `;
+            if (hours > 0) uptimeStr += `${hours}h `;
+            if (minutes > 0) uptimeStr += `${minutes}m `;
+            uptimeStr += `${seconds}s`;
+
+            document.getElementById('uptime').textContent = uptimeStr;
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            document.getElementById('timestamp').textContent = timeStr;
+        }
+
+        function loadCommands() {
+            const commandsList = document.getElementById('commands-list');
+            commandsList.innerHTML = '';
+            sampleCommands.forEach((cmd, index) => {
+                const tag = document.createElement('div');
+                tag.className = 'command-tag';
+                tag.textContent = `-${cmd}`;
+                tag.style.animation = `fadeInLine 0.5s ease-out ${index * 0.05}s backwards`;
+                commandsList.appendChild(tag);
+            });
+        }
+
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const value = Math.floor(progress * (end - start) + start);
+                element.textContent = value;
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateUptime();
+            updateTimestamp();
+            loadCommands();
+
+            // Update uptime every second
+            setInterval(updateUptime, 1000);
+
+            // Update timestamp every second
+            setInterval(updateTimestamp, 1000);
+
+            // Animate command count
+            animateValue(document.getElementById('commands-count'), 0, 62, 1000);
+            animateValue(document.getElementById('events-count'), 0, 6, 800);
+        });
+
+        // Easter egg: click on author name
+        document.getElementById('author').addEventListener('click', () => {
+            const auth = document.getElementById('author');
+            auth.style.animation = 'glitch 0.5s infinite';
+            setTimeout(() => {
+                auth.style.animation = 'none';
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-let simEnabled = false;
+let simEnabled = true;
 
 async function getSimReply(api, event, prompt) {
   const uid = event.senderID;
